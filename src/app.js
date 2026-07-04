@@ -17,14 +17,17 @@
   // --- State -----------------------------------------------------------------
   // categories: ordered list of { name, amount }
   let categories = DEFAULT_CATEGORIES.map((name) => ({ name, amount: 0 }));
-  let income = 0;
+  let income1 = 0; // first fortnightly paycheck
+  let income2 = 0; // second fortnightly paycheck
   let chart = null;
 
   // --- Element refs ----------------------------------------------------------
   const el = {
     monthPicker: document.getElementById("monthPicker"),
     monthLabel: document.getElementById("monthLabel"),
-    income: document.getElementById("income"),
+    income1: document.getElementById("income1"),
+    income2: document.getElementById("income2"),
+    incomeTotal: document.getElementById("incomeTotal"),
     metricIncome: document.getElementById("metricIncome"),
     metricExpenses: document.getElementById("metricExpenses"),
     metricBalance: document.getElementById("metricBalance"),
@@ -65,6 +68,10 @@
 
   function totalExpenses() {
     return categories.reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
+  }
+
+  function totalIncome() {
+    return (Number(income1) || 0) + (Number(income2) || 0);
   }
 
   function slugify(name) {
@@ -135,8 +142,10 @@
 
   function renderMetrics() {
     const exp = totalExpenses();
-    const balance = income - exp;
-    el.metricIncome.textContent = money.format(income || 0);
+    const inc = totalIncome();
+    const balance = inc - exp;
+    el.metricIncome.textContent = money.format(inc);
+    el.incomeTotal.textContent = money.format(inc);
     el.metricExpenses.textContent = money.format(exp);
     el.metricBalance.textContent = money.format(balance);
 
@@ -260,11 +269,14 @@
       if (amt > 0) breakdown[c.name] = amt;
     });
     const exp = totalExpenses();
+    const inc = totalIncome();
     return {
       month: el.monthPicker.value || currentMonthKey(),
-      income: Number(income) || 0,
+      income: inc,
+      income_1: Number(income1) || 0,
+      income_2: Number(income2) || 0,
       total_expense: exp,
-      balance: (Number(income) || 0) - exp,
+      balance: inc - exp,
       breakdown,
     };
   }
@@ -297,8 +309,17 @@
     }
 
     if (record) {
-      income = Number(record.income) || 0;
-      el.income.value = income ? income : "";
+      // Prefer the two saved paychecks; fall back to legacy single-income
+      // records by putting the whole amount in the first paycheck.
+      if (record.income_1 != null || record.income_2 != null) {
+        income1 = Number(record.income_1) || 0;
+        income2 = Number(record.income_2) || 0;
+      } else {
+        income1 = Number(record.income) || 0;
+        income2 = 0;
+      }
+      el.income1.value = income1 ? income1 : "";
+      el.income2.value = income2 ? income2 : "";
       // Rebuild categories: defaults first, then any saved extras, applying amounts.
       const breakdown = record.breakdown || {};
       const names = [...DEFAULT_CATEGORIES];
@@ -313,8 +334,10 @@
       });
     } else {
       // Fresh month — reset to defaults, keep income blank.
-      income = 0;
-      el.income.value = "";
+      income1 = 0;
+      income2 = 0;
+      el.income1.value = "";
+      el.income2.value = "";
       categories = DEFAULT_CATEGORIES.map((name) => ({ name, amount: 0 }));
     }
     renderCategories();
@@ -421,11 +444,21 @@
       Object.keys(r.breakdown || {}).forEach((k) => catSet.add(k))
     );
     const cats = [...catSet];
-    const header = ["Month", "Income", "Total Expense", "Balance", ...cats];
+    const header = [
+      "Month",
+      "Income (1st)",
+      "Income (2nd)",
+      "Income (Total)",
+      "Total Expense",
+      "Balance",
+      ...cats,
+    ];
     const rows = records.map((r) => {
       const b = r.breakdown || {};
       return [
         monthKeyToLabel(r.month),
+        r.income_1 || 0,
+        r.income_2 || 0,
         r.income || 0,
         r.total_expense || 0,
         r.balance || 0,
@@ -490,8 +523,12 @@
     el.monthPicker.value = startMonth;
     el.monthLabel.textContent = monthKeyToLabel(startMonth);
 
-    el.income.addEventListener("input", () => {
-      income = parseFloat(el.income.value) || 0;
+    el.income1.addEventListener("input", () => {
+      income1 = parseFloat(el.income1.value) || 0;
+      recompute();
+    });
+    el.income2.addEventListener("input", () => {
+      income2 = parseFloat(el.income2.value) || 0;
       recompute();
     });
 
@@ -523,8 +560,10 @@
 
   /** Clear all inputs, chart and history back to an empty default state. */
   function resetUI() {
-    income = 0;
-    el.income.value = "";
+    income1 = 0;
+    income2 = 0;
+    el.income1.value = "";
+    el.income2.value = "";
     categories = DEFAULT_CATEGORIES.map((name) => ({ name, amount: 0 }));
     renderCategories();
     recompute();

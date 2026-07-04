@@ -111,12 +111,29 @@
       </div>
 
       <div class="glass rounded-2xl border border-white/10 p-5 shadow-card">
-        <label for="income" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Total Monthly Income</label>
-        <div class="relative">
-          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-medium select-none">Rs</span>
-          <input id="income" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"
-            class="w-full rounded-xl bg-ink-800 border border-white/10 pl-10 pr-3 py-2.5 text-slate-100 text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
+        <div class="flex items-center justify-between mb-2">
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400">Monthly Income</label>
+          <span class="text-[11px] text-slate-500">Paid fortnightly · 2 paychecks</span>
         </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="income1" class="block text-[11px] font-medium text-slate-400 mb-1">First paycheck</label>
+            <div class="relative">
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-medium select-none">Rs</span>
+              <input id="income1" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"
+                class="w-full rounded-xl bg-ink-800 border border-white/10 pl-10 pr-3 py-2.5 text-slate-100 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
+            </div>
+          </div>
+          <div>
+            <label for="income2" class="block text-[11px] font-medium text-slate-400 mb-1">Second paycheck</label>
+            <div class="relative">
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-medium select-none">Rs</span>
+              <input id="income2" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"
+                class="w-full rounded-xl bg-ink-800 border border-white/10 pl-10 pr-3 py-2.5 text-slate-100 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
+            </div>
+          </div>
+        </div>
+        <p class="mt-2 text-sm text-slate-400">Total income: <span id="incomeTotal" class="font-semibold text-slate-200">Rs 0</span></p>
       </div>
     </section>
 

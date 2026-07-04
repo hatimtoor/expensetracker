@@ -86,6 +86,8 @@
       const clean = {
         month: record.month,
         income: Number(record.income) || 0,
+        income_1: Number(record.income_1) || 0,
+        income_2: Number(record.income_2) || 0,
         total_expense: Number(record.total_expense) || 0,
         balance: Number(record.balance) || 0,
         breakdown: record.breakdown || {},

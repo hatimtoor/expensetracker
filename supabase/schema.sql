@@ -5,13 +5,21 @@
 create table if not exists public.monthly_records (
   id            uuid primary key default gen_random_uuid(),
   month         text not null,                   -- "YYYY-MM"
-  income        numeric not null default 0,
+  income        numeric not null default 0,      -- total for the month (income_1 + income_2)
+  income_1      numeric not null default 0,      -- first fortnightly paycheck
+  income_2      numeric not null default 0,      -- second fortnightly paycheck
   total_expense numeric not null default 0,
   balance       numeric not null default 0,
   breakdown     jsonb  not null default '{}'::jsonb,  -- { "Food": 500, "Rent": 1200 }
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now()
 );
+
+-- Fortnightly paychecks (upgrade older tables that only had `income`).
+alter table public.monthly_records
+  add column if not exists income_1 numeric not null default 0;
+alter table public.monthly_records
+  add column if not exists income_2 numeric not null default 0;
 
 -- Ownership: every row belongs to the authenticated user who created it.
 alter table public.monthly_records
