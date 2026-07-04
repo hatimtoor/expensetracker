@@ -289,6 +289,7 @@
       await Store.saveRecord(record);
       toast(`Saved ${monthKeyToLabel(record.month)} ✓`);
       await renderHistory();
+      if (window.Goals) await Goals.refresh(); // linked goals track saved months
     } catch (e) {
       console.error(e);
       toast("Save failed — check console / Supabase config.", true);
@@ -551,8 +552,11 @@
 
     // Gate behind sign-in when Supabase is configured; local mode starts now.
     Auth.gate(
-      // onAuth: user present — load this month's data + history.
-      () => loadMonth(el.monthPicker.value || startMonth).then(renderHistory),
+      // onAuth: user present — load this month's data, history and goals.
+      () =>
+        loadMonth(el.monthPicker.value || startMonth)
+          .then(renderHistory)
+          .then(() => window.Goals && Goals.load()),
       // onSignedOut: wipe the screen so nothing leaks between accounts.
       resetUI
     );
@@ -570,6 +574,7 @@
     el.historyBody.innerHTML = "";
     el.historyEmpty.style.display = "block";
     el.historyCount.textContent = "";
+    if (window.Goals) Goals.reset();
   }
 
   document.addEventListener("DOMContentLoaded", init);

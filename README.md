@@ -21,6 +21,9 @@ No build step. Plain HTML + Tailwind (CDN) + Chart.js + Supabase JS.
 - **Save Month's Data** — persists to Supabase (if configured) and always
   mirrors to your browser's local storage.
 - **Historical Log** table with Load / Delete per month and **Export CSV**.
+- **Savings Goals** — set a name, target amount and optional deadline; each goal
+  shows a progress ring. Link a goal to an expense category (e.g. Mutual Funds)
+  and its progress auto-fills from your saved months, or track it manually.
 
 ## Run it
 
@@ -107,7 +110,8 @@ index.html            # markup + CDN includes + sign-in gate
 src/config.js          # Supabase URL / anon key (edit to enable sync)
 src/store.js           # storage layer — Supabase or localStorage + auth
 src/auth.js            # sign-in / sign-up gate
+src/goals.js           # savings goals — progress rings, auto/manual tracking
 src/app.js             # UI logic, live metrics, chart, history
-supabase/schema.sql    # table + per-user ownership + RLS policy
+supabase/schema.sql    # tables (records + goals) + per-user ownership + RLS
 vercel.json            # static deploy config (clean URLs + caching)
 ```

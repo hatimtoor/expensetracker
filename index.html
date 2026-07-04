@@ -209,6 +209,62 @@
       <span id="toast" class="text-sm font-medium text-emerald-400 opacity-0 transition-opacity"></span>
     </section>
 
+    <!-- Savings Goals -->
+    <section class="mb-10">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-lg font-bold text-white">Savings Goals</h2>
+          <p class="text-xs text-slate-400">Set a target and watch the ring fill. Link a goal to a category to auto-track it from your saved months.</p>
+        </div>
+        <span id="goalsCount" class="text-xs text-slate-400"></span>
+      </div>
+
+      <!-- Add goal -->
+      <div class="glass rounded-2xl border border-white/10 p-5 shadow-card mb-4">
+        <form id="goalForm" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
+          <div class="lg:col-span-4">
+            <label for="goalName" class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Goal name</label>
+            <input id="goalName" type="text" maxlength="60" placeholder="e.g. Mutual Funds 300k"
+              class="w-full rounded-xl bg-ink-800 border border-white/10 px-3 py-2.5 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
+          </div>
+          <div class="lg:col-span-3">
+            <label for="goalTarget" class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Target amount</label>
+            <div class="relative">
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-medium select-none">Rs</span>
+              <input id="goalTarget" type="number" inputmode="decimal" min="0" step="0.01" placeholder="300000"
+                class="w-full rounded-xl bg-ink-800 border border-white/10 pl-10 pr-3 py-2.5 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
+            </div>
+          </div>
+          <div class="lg:col-span-3">
+            <label for="goalCategory" class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Track from</label>
+            <select id="goalCategory"
+              class="w-full rounded-xl bg-ink-800 border border-white/10 px-3 py-2.5 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/60">
+              <option value="">Manual (I'll update it)</option>
+            </select>
+          </div>
+          <div class="lg:col-span-2">
+            <label for="goalDate" class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Target date <span class="text-slate-500 normal-case">(optional)</span></label>
+            <input id="goalDate" type="date"
+              class="w-full rounded-xl bg-ink-800 border border-white/10 px-3 py-2.5 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
+          </div>
+          <div class="lg:col-span-12">
+            <button type="submit"
+              class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 px-5 py-2.5 font-semibold text-ink-900 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+              Add Goal
+            </button>
+            <span id="goalError" class="ml-3 text-xs text-rose-400 hidden"></span>
+          </div>
+        </form>
+      </div>
+
+      <!-- Goal cards -->
+      <div id="goalsGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+      <div id="goalsEmpty" class="glass rounded-2xl border border-white/10 p-8 text-center text-slate-500 text-sm">
+        No goals yet. Add one above — e.g. invest <span class="text-slate-300 font-medium">Rs 300,000</span> in Mutual Funds.
+      </div>
+    </section>
+
     <!-- Historical Log -->
     <section class="glass rounded-2xl border border-white/10 shadow-card overflow-hidden">
       <div class="flex items-center justify-between p-5 sm:p-6 border-b border-white/10">
@@ -281,6 +337,7 @@
   <script src="src/config.js"></script>
   <script src="src/store.js"></script>
   <script src="src/auth.js"></script>
+  <script src="src/goals.js"></script>
   <script src="src/app.js"></script>
 </body>
 </html>

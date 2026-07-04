@@ -61,6 +61,34 @@ create policy "Users manage own records"
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+-- ── Goals ─────────────────────────────────────────────────────────────────────
+create table if not exists public.goals (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid default auth.uid() references auth.users(id) on delete cascade,
+  name        text not null,
+  target      numeric not null default 0,        -- goal amount, e.g. 300000
+  category    text,                               -- linked expense category, or null (manual)
+  saved       numeric not null default 0,         -- manual progress when not linked
+  target_date date,                               -- optional deadline
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+
+drop trigger if exists trg_goals_updated_at on public.goals;
+create trigger trg_goals_updated_at
+  before update on public.goals
+  for each row execute function public.set_updated_at();
+
+alter table public.goals enable row level security;
+
+drop policy if exists "Users manage own goals" on public.goals;
+create policy "Users manage own goals"
+  on public.goals
+  for all
+  to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
 -- ── After running this ────────────────────────────────────────────────────────
 -- 1. Create your single account from the app's login screen (Sign up), OR in
 --    Dashboard -> Authentication -> Users -> Add user.

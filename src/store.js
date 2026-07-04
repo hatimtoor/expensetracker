@@ -23,7 +23,9 @@
 (function () {
   const cfg = window.SUPABASE_CONFIG || {};
   const LS_KEY = "wealthtrack.records.v1";
+  const LS_GOALS_KEY = "wealthtrack.goals.v1";
   const TABLE = cfg.table || "monthly_records";
+  const GOALS_TABLE = cfg.goalsTable || "goals";
 
   const hasSupabase =
     !!cfg.url &&
@@ -64,10 +66,39 @@
   }
   function lsClear() {
     localStorage.removeItem(LS_KEY);
+    localStorage.removeItem(LS_GOALS_KEY);
   }
   function lsList() {
     return Object.values(lsReadAll()).sort((a, b) =>
       a.month < b.month ? 1 : a.month > b.month ? -1 : 0
+    );
+  }
+
+  // ---- localStorage helpers (goals) -----------------------------------------
+  function lsGoalsReadAll() {
+    try {
+      const raw = localStorage.getItem(LS_GOALS_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  }
+  function lsGoalsWriteAll(map) {
+    localStorage.setItem(LS_GOALS_KEY, JSON.stringify(map));
+  }
+  function lsGoalUpsert(goal) {
+    const map = lsGoalsReadAll();
+    map[goal.id] = goal;
+    lsGoalsWriteAll(map);
+  }
+  function lsGoalDelete(id) {
+    const map = lsGoalsReadAll();
+    delete map[id];
+    lsGoalsWriteAll(map);
+  }
+  function lsGoalsList() {
+    return Object.values(lsGoalsReadAll()).sort((a, b) =>
+      (a.created_at || "") < (b.created_at || "") ? -1 : 1
     );
   }
 
@@ -148,6 +179,58 @@
         if (error) throw error;
       }
       lsDelete(month);
+    },
+
+    // ---- Goals --------------------------------------------------------------
+
+    /** Save (upsert) a goal. Returns the stored goal. */
+    async saveGoal(goal) {
+      const clean = {
+        id: goal.id,
+        name: goal.name,
+        target: Number(goal.target) || 0,
+        category: goal.category || null, // linked expense category, or null
+        saved: Number(goal.saved) || 0, // manual progress (unused when linked)
+        target_date: goal.target_date || null,
+        created_at: goal.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      if (sb) {
+        const uid = await currentUserId();
+        if (uid) clean.user_id = uid;
+        const { error } = await sb
+          .from(GOALS_TABLE)
+          .upsert(clean, { onConflict: "id" });
+        if (error) throw error;
+      }
+      lsGoalUpsert(clean);
+      return clean;
+    },
+
+    /** List all goals, oldest first. */
+    async listGoals() {
+      if (sb) {
+        const { data, error } = await sb
+          .from(GOALS_TABLE)
+          .select("*")
+          .order("created_at", { ascending: true });
+        if (!error && Array.isArray(data)) {
+          const map = {};
+          data.forEach((g) => (map[g.id] = g));
+          lsGoalsWriteAll(map);
+          return data;
+        }
+      }
+      return lsGoalsList();
+    },
+
+    /** Delete a goal by id. */
+    async deleteGoal(id) {
+      if (sb) {
+        const { error } = await sb.from(GOALS_TABLE).delete().eq("id", id);
+        if (error) throw error;
+      }
+      lsGoalDelete(id);
     },
 
     // ---- Auth ---------------------------------------------------------------
