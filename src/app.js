@@ -511,8 +511,26 @@
 
     renderCategories();
     recompute();
-    // Load any previously-saved data for the current month, then history.
-    loadMonth(startMonth).then(renderHistory);
+
+    // Gate behind sign-in when Supabase is configured; local mode starts now.
+    Auth.gate(
+      // onAuth: user present — load this month's data + history.
+      () => loadMonth(el.monthPicker.value || startMonth).then(renderHistory),
+      // onSignedOut: wipe the screen so nothing leaks between accounts.
+      resetUI
+    );
+  }
+
+  /** Clear all inputs, chart and history back to an empty default state. */
+  function resetUI() {
+    income = 0;
+    el.income.value = "";
+    categories = DEFAULT_CATEGORIES.map((name) => ({ name, amount: 0 }));
+    renderCategories();
+    recompute();
+    el.historyBody.innerHTML = "";
+    el.historyEmpty.style.display = "block";
+    el.historyCount.textContent = "";
   }
 
   document.addEventListener("DOMContentLoaded", init);

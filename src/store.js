@@ -2,20 +2,22 @@
  * Storage abstraction.
  *
  * Presents one async API to the app and picks the backend at runtime:
- *   - Supabase (cloud sync) when window.SUPABASE_CONFIG has a url + anonKey
+ *   - Supabase (cloud sync, per-user) when window.SUPABASE_CONFIG has url + anonKey
  *   - localStorage otherwise (works fully offline)
  *
- * When Supabase is active, saves are ALSO mirrored to localStorage so the app
- * still shows history if the network drops.
+ * When Supabase is active the app requires sign-in (see auth.js). Row Level
+ * Security scopes every query to the logged-in user, so data is private to
+ * your account. Saves are ALSO mirrored to localStorage so history survives a
+ * dropped connection.
  *
  * Record shape:
  *   {
- *     month: "2026-07",          // unique key, YYYY-MM
+ *     month: "2026-07",          // unique per user, YYYY-MM
  *     income: 4200,
  *     total_expense: 1850,
  *     balance: 2350,
  *     breakdown: { "Food": 500, "Rent": 1200, ... },
- *     updated_at: "2026-07-04T..."  // ISO, set by client for local mode
+ *     updated_at: "2026-07-04T..."  // ISO
  *   }
  */
 (function () {
@@ -60,10 +62,19 @@
     delete map[month];
     lsWriteAll(map);
   }
+  function lsClear() {
+    localStorage.removeItem(LS_KEY);
+  }
   function lsList() {
     return Object.values(lsReadAll()).sort((a, b) =>
       a.month < b.month ? 1 : a.month > b.month ? -1 : 0
     );
+  }
+
+  async function currentUserId() {
+    if (!sb) return null;
+    const { data } = await sb.auth.getUser();
+    return data && data.user ? data.user.id : null;
   }
 
   // ---- Public API -----------------------------------------------------------
@@ -82,12 +93,14 @@
       };
 
       if (sb) {
+        const uid = await currentUserId();
+        if (uid) clean.user_id = uid; // RLS also enforces this
         const { error } = await sb
           .from(TABLE)
-          .upsert(clean, { onConflict: "month" });
+          .upsert(clean, { onConflict: "user_id,month" });
         if (error) throw error;
       }
-      // Always mirror locally so history survives offline / refresh.
+      // Mirror locally so history survives offline / refresh.
       lsUpsert(clean);
       return clean;
     },
@@ -116,7 +129,7 @@
           .select("*")
           .order("month", { ascending: false });
         if (!error && Array.isArray(data)) {
-          // Refresh local mirror to match cloud.
+          // Refresh local mirror to match cloud (scoped to this user by RLS).
           const map = {};
           data.forEach((r) => (map[r.month] = r));
           lsWriteAll(map);
@@ -133,6 +146,37 @@
         if (error) throw error;
       }
       lsDelete(month);
+    },
+
+    // ---- Auth ---------------------------------------------------------------
+    auth: {
+      enabled: !!sb,
+
+      async currentUser() {
+        if (!sb) return null;
+        const { data } = await sb.auth.getUser();
+        return (data && data.user) || null;
+      },
+
+      async signIn(email, password) {
+        const { data, error } = await sb.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+        return data.user;
+      },
+
+      async signUp(email, password) {
+        const { data, error } = await sb.auth.signUp({ email, password });
+        if (error) throw error;
+        return data; // { user, session } — session is null if email confirm is on
+      },
+
+      async signOut() {
+        if (sb) await sb.auth.signOut();
+        lsClear(); // don't leave this account's cache for the next person on this browser
+      },
     },
   };
 

@@ -84,12 +84,18 @@
         </div>
       </div>
 
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2 sm:gap-3">
+        <span id="userEmail" class="hidden max-w-[9rem] truncate text-xs text-slate-400" title=""></span>
         <span id="syncStatus"
           class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-300">
           <span id="syncDot" class="h-2 w-2 rounded-full bg-amber-400"></span>
           <span id="syncLabel">Local storage</span>
         </span>
+        <button id="signOutBtn" type="button"
+          class="hidden inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-white/10 hover:text-white transition">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>
+          Sign out
+        </button>
       </div>
     </header>
 
@@ -218,8 +224,46 @@
     </footer>
   </div>
 
+  <!-- Sign-in gate (shown only when Supabase is configured and no user) -->
+  <div id="authGate" class="fixed inset-0 z-50 hidden items-center justify-center bg-ink-900/95 backdrop-blur-sm px-4">
+    <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-ink-800 p-6 sm:p-7 shadow-card fade-in">
+      <div class="flex items-center gap-3 mb-5">
+        <div class="grid place-items-center h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-ink-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 5-7"/></svg>
+        </div>
+        <div>
+          <p class="text-sm font-bold text-white leading-tight">WealthTrack</p>
+          <p class="text-xs text-slate-400">Your data is private to your account.</p>
+        </div>
+      </div>
+
+      <h2 id="authTitle" class="text-lg font-bold text-white mb-4">Sign in</h2>
+      <form id="authForm" class="space-y-3">
+        <div>
+          <label for="authEmail" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Email</label>
+          <input id="authEmail" type="email" required autocomplete="email" placeholder="you@example.com"
+            class="w-full rounded-xl bg-ink-900/60 border border-white/10 px-3 py-2.5 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
+        </div>
+        <div>
+          <label for="authPassword" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Password</label>
+          <input id="authPassword" type="password" required minlength="6" autocomplete="current-password" placeholder="••••••••"
+            class="w-full rounded-xl bg-ink-900/60 border border-white/10 px-3 py-2.5 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
+        </div>
+        <button id="authSubmit" type="submit"
+          class="w-full inline-flex items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 px-4 py-2.5 font-bold text-ink-900 hover:brightness-110 transition">
+          Sign in
+        </button>
+      </form>
+      <p id="authError" class="hidden mt-3 text-xs text-rose-400"></p>
+      <button id="authToggle" type="button" class="mt-4 w-full text-center text-xs font-medium text-sky-400 hover:text-sky-300">
+        Need an account? Sign up
+      </button>
+    </div>
+  </div>
+
   <script src="src/config.js"></script>
   <script src="src/store.js"></script>
+  <script src="src/auth.js"></script>
   <script src="src/app.js"></script>
 </body>
 </html>
