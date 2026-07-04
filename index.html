@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WealthTrack · Monthly Expense &amp; Wealth Tracker</title>
+  <meta name="description" content="A clean, responsive monthly expense and wealth tracker with live charts and Supabase sync." />
+
+  <!-- Tailwind CSS (Play CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            ink: {
+              900: '#0b1020',
+              800: '#111830',
+              700: '#1a2340',
+              600: '#243056',
+            },
+            accent: {
+              400: '#4ade80',
+              500: '#22c55e',
+            },
+          },
+          boxShadow: {
+            card: '0 10px 30px -12px rgba(0,0,0,0.55)',
+          },
+        },
+      },
+    };
+  </script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <!-- Supabase JS client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      background:
+        radial-gradient(1200px 600px at 15% -10%, rgba(34,197,94,0.10), transparent 60%),
+        radial-gradient(1000px 500px at 100% 0%, rgba(59,130,246,0.10), transparent 55%),
+        #0b1020;
+    }
+    /* Remove number input spinners for a cleaner look */
+    input[type=number]::-webkit-outer-spin-button,
+    input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+    .glass { background: rgba(17, 24, 48, 0.72); backdrop-filter: blur(10px); }
+    .fade-in { animation: fadeIn .35s ease both; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    ::-webkit-scrollbar { height: 10px; width: 10px; }
+    ::-webkit-scrollbar-thumb { background: #243056; border-radius: 999px; }
+  </style>
+</head>
+
+<body class="min-h-screen text-slate-200 font-sans antialiased">
+  <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+
+    <!-- Header -->
+    <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+      <div class="flex items-center gap-3">
+        <div class="grid place-items-center h-11 w-11 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-card">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-ink-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 3v18h18" />
+            <path d="M7 15l3-4 3 2 5-7" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-xl sm:text-2xl font-extrabold tracking-tight text-white">WealthTrack</h1>
+          <p class="text-xs sm:text-sm text-slate-400">Monthly Expense &amp; Wealth Tracker</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <span id="syncStatus"
+          class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-300">
+          <span id="syncDot" class="h-2 w-2 rounded-full bg-amber-400"></span>
+          <span id="syncLabel">Local storage</span>
+        </span>
+      </div>
+    </header>
+
+    <!-- Top controls: month + income -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+      <div class="glass rounded-2xl border border-white/10 p-5 shadow-card">
+        <label for="monthPicker" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Month</label>
+        <div class="flex items-center gap-3">
+          <input id="monthPicker" type="month"
+            class="w-full rounded-xl bg-ink-800 border border-white/10 px-3 py-2.5 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
+        </div>
+        <p id="monthLabel" class="mt-2 text-sm text-slate-400"></p>
+      </div>
+
+      <div class="glass rounded-2xl border border-white/10 p-5 shadow-card">
+        <label for="income" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Total Monthly Income</label>
+        <div class="relative">
+          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 select-none">$</span>
+          <input id="income" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"
+            class="w-full rounded-xl bg-ink-800 border border-white/10 pl-7 pr-3 py-2.5 text-slate-100 text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Metric cards -->
+    <section class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+      <div class="rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-transparent p-5 shadow-card">
+        <p class="text-xs font-semibold uppercase tracking-wider text-emerald-300/80">Total Income</p>
+        <p id="metricIncome" class="mt-2 text-3xl font-extrabold text-white tabular-nums">$0.00</p>
+      </div>
+      <div class="rounded-2xl border border-rose-500/20 bg-gradient-to-br from-rose-500/10 to-transparent p-5 shadow-card">
+        <p class="text-xs font-semibold uppercase tracking-wider text-rose-300/80">Total Expenses</p>
+        <p id="metricExpenses" class="mt-2 text-3xl font-extrabold text-white tabular-nums">$0.00</p>
+      </div>
+      <div id="balanceCard" class="rounded-2xl border border-sky-500/20 bg-gradient-to-br from-sky-500/10 to-transparent p-5 shadow-card">
+        <p class="text-xs font-semibold uppercase tracking-wider text-sky-300/80">Remaining Balance</p>
+        <p id="metricBalance" class="mt-2 text-3xl font-extrabold text-white tabular-nums">$0.00</p>
+      </div>
+    </section>
+
+    <!-- Main grid: expenses + chart -->
+    <section class="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-8">
+      <!-- Expenses -->
+      <div class="lg:col-span-3 glass rounded-2xl border border-white/10 p-5 sm:p-6 shadow-card">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-bold text-white">Expenses</h2>
+          <span class="text-xs text-slate-400">Type any amount — totals update live</span>
+        </div>
+
+        <!-- Category inputs (2-column grid) -->
+        <div id="categoryGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+
+        <!-- Add custom category -->
+        <div class="mt-5 pt-5 border-t border-white/10">
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Add Custom Category</label>
+          <form id="addCategoryForm" class="flex flex-col sm:flex-row gap-2">
+            <input id="newCategory" type="text" maxlength="40" placeholder="e.g. Hike, Car Repair, Rent"
+              class="flex-1 rounded-xl bg-ink-800 border border-white/10 px-3 py-2.5 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
+            <button type="submit"
+              class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 px-4 py-2.5 font-semibold text-ink-900 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+              Add
+            </button>
+          </form>
+          <p id="addError" class="mt-2 text-xs text-rose-400 hidden"></p>
+        </div>
+      </div>
+
+      <!-- Chart -->
+      <div class="lg:col-span-2 glass rounded-2xl border border-white/10 p-5 sm:p-6 shadow-card">
+        <h2 class="text-lg font-bold text-white mb-1">Where is your money going?</h2>
+        <p class="text-xs text-slate-400 mb-4">Categories with $0 are hidden.</p>
+        <div class="relative h-64 sm:h-72">
+          <canvas id="expenseChart"></canvas>
+          <div id="chartEmpty" class="absolute inset-0 grid place-items-center text-center text-slate-500 text-sm">
+            Add some expenses to see the breakdown.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Save + actions -->
+    <section class="flex flex-col sm:flex-row sm:items-center gap-3 mb-10">
+      <button id="saveBtn"
+        class="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 px-6 py-3 font-bold text-ink-900 shadow-card hover:brightness-110 transition">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+        Save Month's Data
+      </button>
+      <button id="exportBtn"
+        class="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-3 font-semibold text-slate-200 hover:bg-white/10 transition">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>
+        Export CSV
+      </button>
+      <span id="toast" class="text-sm font-medium text-emerald-400 opacity-0 transition-opacity"></span>
+    </section>
+
+    <!-- Historical Log -->
+    <section class="glass rounded-2xl border border-white/10 shadow-card overflow-hidden">
+      <div class="flex items-center justify-between p-5 sm:p-6 border-b border-white/10">
+        <div>
+          <h2 class="text-lg font-bold text-white">Historical Log</h2>
+          <p class="text-xs text-slate-400">Your saved months over time.</p>
+        </div>
+        <span id="historyCount" class="text-xs text-slate-400"></span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-slate-400 border-b border-white/10">
+              <th class="px-5 sm:px-6 py-3 font-semibold">Month</th>
+              <th class="px-4 py-3 font-semibold text-right">Income</th>
+              <th class="px-4 py-3 font-semibold text-right">Expenses</th>
+              <th class="px-4 py-3 font-semibold text-right">Balance</th>
+              <th class="px-4 py-3 font-semibold">Top Categories</th>
+              <th class="px-5 sm:px-6 py-3 font-semibold text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+      </div>
+      <div id="historyEmpty" class="p-8 text-center text-slate-500 text-sm">No saved months yet. Fill in your numbers and hit <span class="text-slate-300 font-medium">Save Month's Data</span>.</div>
+    </section>
+
+    <footer class="mt-10 text-center text-xs text-slate-500">
+      Built with Tailwind, Chart.js &amp; Supabase · Data syncs to the cloud when configured, otherwise stays in your browser.
+    </footer>
+  </div>
+
+  <script src="src/config.js"></script>
+  <script src="src/store.js"></script>
+  <script src="src/app.js"></script>
+</body>
+</html>
