@@ -16,7 +16,7 @@
  * Supabase Auth if you deploy this for multiple people.
  */
 window.SUPABASE_CONFIG = {
-  url: "",      // e.g. "https://xxxxxxxxxxxx.supabase.co"
-  anonKey: "",  // e.g. "eyJhbGciOi..."
+  url: "https://ehwjktquodswhmqzbgch.supabase.co",      // e.g. "https://xxxxxxxxxxxx.supabase.co"
+  anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVod2prdHF1b2Rzd2htcXpiZ2NoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxMzY5NjEsImV4cCI6MjA5ODcxMjk2MX0.rbhOTgeQpq4OC-8apTQN_Vid1lQQK8e_pMBpkHQrbrg",  // e.g. "eyJhbGciOi..."
   table: "monthly_records",
 };
