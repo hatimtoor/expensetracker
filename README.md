@@ -4,6 +4,8 @@ A responsive, single-page dashboard for tracking monthly income, expenses, and
 remaining balance — with live metrics, an interactive donut chart, a saved
 history log, and optional **Supabase cloud sync**.
 
+Amounts are shown in **Pakistani Rupees (PKR / Rs)**.
+
 No build step. Plain HTML + Tailwind (CDN) + Chart.js + Supabase JS.
 
 ## Features
@@ -59,6 +61,34 @@ works offline — data lives in your browser.
 > is fine for a personal single-user tracker. For multiple users, add a
 > `user_id` column + Supabase Auth policies.
 
+## Deploy on Vercel
+
+Yes — it's a static site, so it deploys with **zero configuration**. A
+`vercel.json` is included for clean URLs and sensible caching.
+
+**Option A — dashboard (no CLI):**
+
+1. Push this folder to a GitHub/GitLab repo.
+2. Go to [vercel.com/new](https://vercel.com/new) and import the repo.
+3. Framework preset: **Other**. Leave Build Command and Output Directory empty
+   (it's already static). Click **Deploy**.
+
+**Option B — Vercel CLI:**
+
+```bash
+npm i -g vercel
+vercel          # preview deploy
+vercel --prod   # production deploy
+```
+
+### Supabase on Vercel
+
+No environment variables or build step are needed. This is a client-side app,
+so the Supabase **anon** key is public by design — safe because Row Level
+Security is enabled by `schema.sql`. Just commit your URL + anon key in
+`src/config.js` and they ship with the deploy. (Do **not** put your Supabase
+*service_role* key here — only the anon key.)
+
 ## Project structure
 
 ```
@@ -67,4 +97,5 @@ src/config.js          # Supabase URL / anon key (edit to enable sync)
 src/store.js           # storage layer — Supabase or localStorage
 src/app.js             # UI logic, live metrics, chart, history
 supabase/schema.sql    # table + RLS policy
+vercel.json            # static deploy config (clean URLs + caching)
 ```

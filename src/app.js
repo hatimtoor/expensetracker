@@ -45,10 +45,11 @@
   };
 
   // --- Helpers ---------------------------------------------------------------
-  const money = new Intl.NumberFormat(undefined, {
+  const money = new Intl.NumberFormat("en-PK", {
     style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2,
+    currency: "PKR",
+    minimumFractionDigits: 0, // whole rupees stay clean (Rs 5,000)
+    maximumFractionDigits: 2, // paisa still shown when present (Rs 5,000.50)
   });
 
   function currentMonthKey() {
@@ -107,8 +108,8 @@
       inputWrap.className = "relative";
       const dollar = document.createElement("span");
       dollar.className =
-        "absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm select-none";
-      dollar.textContent = "$";
+        "absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-medium select-none";
+      dollar.textContent = "Rs";
       const input = document.createElement("input");
       input.id = `cat-${index}`;
       input.type = "number";
@@ -118,7 +119,7 @@
       input.placeholder = "0.00";
       input.value = cat.amount ? cat.amount : "";
       input.className =
-        "w-full rounded-lg bg-ink-900/60 border border-white/10 pl-6 pr-2 py-2 text-slate-100 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/60";
+        "w-full rounded-lg bg-ink-900/60 border border-white/10 pl-9 pr-2 py-2 text-slate-100 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/60";
       input.addEventListener("input", () => {
         cat.amount = parseFloat(input.value) || 0;
         recompute();

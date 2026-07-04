@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>WealthTrack · Monthly Expense &amp; Wealth Tracker</title>
   <meta name="description" content="A clean, responsive monthly expense and wealth tracker with live charts and Supabase sync." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%B0%3C/text%3E%3C/svg%3E" />
 
   <!-- Tailwind CSS (Play CDN) -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -106,9 +107,9 @@
       <div class="glass rounded-2xl border border-white/10 p-5 shadow-card">
         <label for="income" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Total Monthly Income</label>
         <div class="relative">
-          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 select-none">$</span>
+          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-medium select-none">Rs</span>
           <input id="income" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"
-            class="w-full rounded-xl bg-ink-800 border border-white/10 pl-7 pr-3 py-2.5 text-slate-100 text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
+            class="w-full rounded-xl bg-ink-800 border border-white/10 pl-10 pr-3 py-2.5 text-slate-100 text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
         </div>
       </div>
     </section>
@@ -117,15 +118,15 @@
     <section class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
       <div class="rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-transparent p-5 shadow-card">
         <p class="text-xs font-semibold uppercase tracking-wider text-emerald-300/80">Total Income</p>
-        <p id="metricIncome" class="mt-2 text-3xl font-extrabold text-white tabular-nums">$0.00</p>
+        <p id="metricIncome" class="mt-2 text-3xl font-extrabold text-white tabular-nums">Rs 0</p>
       </div>
       <div class="rounded-2xl border border-rose-500/20 bg-gradient-to-br from-rose-500/10 to-transparent p-5 shadow-card">
         <p class="text-xs font-semibold uppercase tracking-wider text-rose-300/80">Total Expenses</p>
-        <p id="metricExpenses" class="mt-2 text-3xl font-extrabold text-white tabular-nums">$0.00</p>
+        <p id="metricExpenses" class="mt-2 text-3xl font-extrabold text-white tabular-nums">Rs 0</p>
       </div>
       <div id="balanceCard" class="rounded-2xl border border-sky-500/20 bg-gradient-to-br from-sky-500/10 to-transparent p-5 shadow-card">
         <p class="text-xs font-semibold uppercase tracking-wider text-sky-300/80">Remaining Balance</p>
-        <p id="metricBalance" class="mt-2 text-3xl font-extrabold text-white tabular-nums">$0.00</p>
+        <p id="metricBalance" class="mt-2 text-3xl font-extrabold text-white tabular-nums">Rs 0</p>
       </div>
     </section>
 
@@ -160,7 +161,7 @@
       <!-- Chart -->
       <div class="lg:col-span-2 glass rounded-2xl border border-white/10 p-5 sm:p-6 shadow-card">
         <h2 class="text-lg font-bold text-white mb-1">Where is your money going?</h2>
-        <p class="text-xs text-slate-400 mb-4">Categories with $0 are hidden.</p>
+        <p class="text-xs text-slate-400 mb-4">Categories with Rs 0 are hidden.</p>
         <div class="relative h-64 sm:h-72">
           <canvas id="expenseChart"></canvas>
           <div id="chartEmpty" class="absolute inset-0 grid place-items-center text-center text-slate-500 text-sm">
