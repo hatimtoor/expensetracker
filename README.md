@@ -37,13 +37,17 @@ the Supabase client and fonts load without file:// restrictions.
 Out of the box it runs in **local storage** mode (badge shows amber). Everything
 works offline — data lives in your browser.
 
-## Enable Supabase cloud sync (optional)
+## Enable Supabase cloud sync (private to your account)
+
+When Supabase is configured, the app is **locked behind a sign-in screen** and
+every row is scoped to your user via Row Level Security — your data is private
+to your account.
 
 1. Create a project at [supabase.com](https://supabase.com).
 2. Open **SQL Editor** and run [`supabase/schema.sql`](supabase/schema.sql).
+   This creates the table, per-user ownership, and the RLS policy.
 3. In **Project Settings → API**, copy your **Project URL** and **anon public**
-   key.
-4. Paste them into [`src/config.js`](src/config.js):
+   key, and paste them into [`src/config.js`](src/config.js):
 
    ```js
    window.SUPABASE_CONFIG = {
@@ -53,13 +57,19 @@ works offline — data lives in your browser.
    };
    ```
 
-5. Reload. The badge turns green (**Supabase · cloud sync**) and saved months
-   sync to the cloud, readable from any device.
+4. Reload. You'll see the **Sign in** screen. Click **Sign up** to create your
+   account once (or add yourself under Dashboard → Authentication → Users).
+5. **Lock it to just you:** after your account exists, go to
+   Dashboard → Authentication → Providers → **Email** and turn **off**
+   *"Allow new users to sign up"*. (Optional but handy: turn **off**
+   *"Confirm email"* so sign-in works instantly.)
 
-> The anon key is safe in the browser **only** with Row Level Security enabled —
-> the schema does this. The included policy grants full access to `anon`, which
-> is fine for a personal single-user tracker. For multiple users, add a
-> `user_id` column + Supabase Auth policies.
+Once signed in, the badge turns green (**Supabase · cloud sync**) and saved
+months sync to the cloud, readable after signing in from any device.
+
+> The **anon** key is safe in the browser — RLS makes it useless without a valid
+> login, and each user can only ever see their own rows. Never put the
+> **service_role** key in `config.js`.
 
 ## Deploy on Vercel
 
@@ -92,10 +102,11 @@ Security is enabled by `schema.sql`. Just commit your URL + anon key in
 ## Project structure
 
 ```
-index.html            # markup + CDN includes
+index.html            # markup + CDN includes + sign-in gate
 src/config.js          # Supabase URL / anon key (edit to enable sync)
-src/store.js           # storage layer — Supabase or localStorage
+src/store.js           # storage layer — Supabase or localStorage + auth
+src/auth.js            # sign-in / sign-up gate
 src/app.js             # UI logic, live metrics, chart, history
-supabase/schema.sql    # table + RLS policy
+supabase/schema.sql    # table + per-user ownership + RLS policy
 vercel.json            # static deploy config (clean URLs + caching)
 ```
