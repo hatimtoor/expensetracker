@@ -15,8 +15,14 @@
   ];
 
   // --- State -----------------------------------------------------------------
-  // categories: ordered list of { name, amount }
-  let categories = DEFAULT_CATEGORIES.map((name) => ({ name, amount: 0 }));
+  // categories: ordered list of { name, amount, pending }
+  //   amount  = total already saved for this month
+  //   pending = amount you're adding right now (folded into `amount` on save)
+  let categories = DEFAULT_CATEGORIES.map((name) => ({
+    name,
+    amount: 0,
+    pending: 0,
+  }));
   let income1 = 0; // first fortnightly paycheck
   let income2 = 0; // second fortnightly paycheck
   let chart = null;
@@ -66,8 +72,13 @@
     return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
   }
 
+  /** A category's effective total = already-saved base + what you're adding now. */
+  function effective(cat) {
+    return (Number(cat.amount) || 0) + (Number(cat.pending) || 0);
+  }
+
   function totalExpenses() {
-    return categories.reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
+    return categories.reduce((sum, c) => sum + effective(c), 0);
   }
 
   function totalIncome() {
@@ -89,15 +100,27 @@
         "fade-in group rounded-xl bg-ink-800/70 border border-white/10 p-3 focus-within:ring-2 focus-within:ring-emerald-500/50 transition";
 
       const row = document.createElement("div");
-      row.className = "flex items-center justify-between mb-1.5";
+      row.className = "flex items-center justify-between gap-2 mb-1.5";
 
       const label = document.createElement("label");
-      label.className = "text-xs font-semibold text-slate-300 truncate pr-2";
+      label.className = "text-xs font-semibold text-slate-300 truncate pr-1";
       label.textContent = cat.name;
       label.title = cat.name;
       label.setAttribute("for", `cat-${index}`);
-
       row.appendChild(label);
+
+      const rightWrap = document.createElement("div");
+      rightWrap.className = "flex items-center gap-1.5 shrink-0";
+
+      // Badge showing how much is already saved this month for this category.
+      const saved = Number(cat.amount) || 0;
+      if (saved > 0) {
+        const badge = document.createElement("span");
+        badge.className =
+          "rounded-md bg-white/5 border border-white/10 px-1.5 py-0.5 text-[10px] font-medium text-slate-300 tabular-nums";
+        badge.textContent = `${money.format(saved)} saved`;
+        rightWrap.appendChild(badge);
+      }
 
       if (!isDefault) {
         const del = document.createElement("button");
@@ -108,8 +131,9 @@
         del.innerHTML =
           '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>';
         del.addEventListener("click", () => removeCategory(index));
-        row.appendChild(del);
+        rightWrap.appendChild(del);
       }
+      row.appendChild(rightWrap);
 
       const inputWrap = document.createElement("div");
       inputWrap.className = "relative";
@@ -121,14 +145,29 @@
       input.id = `cat-${index}`;
       input.type = "number";
       input.inputMode = "decimal";
-      input.min = "0";
       input.step = "0.01";
-      input.placeholder = "0.00";
-      input.value = cat.amount ? cat.amount : "";
+      input.placeholder = saved > 0 ? "add more…" : "0.00";
+      input.value = cat.pending ? cat.pending : "";
       input.className =
         "w-full rounded-lg bg-ink-900/60 border border-white/10 pl-9 pr-2 py-2 text-slate-100 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/60";
+
+      // Live "new total" hint, shown only while you're entering an amount.
+      const hint = document.createElement("p");
+      hint.className = "mt-1 text-[10px] text-emerald-400 tabular-nums";
+      const renderHint = () => {
+        const pending = Number(cat.pending) || 0;
+        if (pending && saved > 0) {
+          hint.textContent = `→ new total ${money.format(saved + pending)}`;
+          hint.style.display = "block";
+        } else {
+          hint.style.display = "none";
+        }
+      };
+      renderHint();
+
       input.addEventListener("input", () => {
-        cat.amount = parseFloat(input.value) || 0;
+        cat.pending = parseFloat(input.value) || 0;
+        renderHint();
         recompute();
       });
 
@@ -136,6 +175,7 @@
       inputWrap.appendChild(input);
       wrap.appendChild(row);
       wrap.appendChild(inputWrap);
+      wrap.appendChild(hint);
       el.categoryGrid.appendChild(wrap);
     });
   }
@@ -160,11 +200,11 @@
   }
 
   function renderChart() {
-    const active = categories.filter((c) => (Number(c.amount) || 0) > 0);
+    const active = categories.filter((c) => effective(c) > 0);
     el.chartEmpty.style.display = active.length ? "none" : "grid";
 
     const labels = active.map((c) => c.name);
-    const data = active.map((c) => Number(c.amount) || 0);
+    const data = active.map((c) => effective(c));
     const colors = active.map((_, i) => PALETTE[i % PALETTE.length]);
 
     if (!chart) {
@@ -237,7 +277,7 @@
     if (exists) {
       return showAddError(`"${trimmed}" already exists.`);
     }
-    categories.push({ name: trimmed, amount: 0 });
+    categories.push({ name: trimmed, amount: 0, pending: 0 });
     el.newCategory.value = "";
     hideAddError();
     renderCategories();
@@ -265,7 +305,7 @@
   function buildRecord() {
     const breakdown = {};
     categories.forEach((c) => {
-      const amt = Number(c.amount) || 0;
+      const amt = effective(c); // saved base + what's being added now
       if (amt > 0) breakdown[c.name] = amt;
     });
     const exp = totalExpenses();
@@ -287,6 +327,14 @@
     el.saveBtn.classList.add("opacity-70");
     try {
       await Store.saveRecord(record);
+      // Fold what was just added into the saved base and clear the inputs,
+      // so the next amount you type adds on top instead of replacing.
+      categories.forEach((c) => {
+        c.amount = effective(c);
+        c.pending = 0;
+      });
+      renderCategories();
+      recompute();
       toast(`Saved ${monthKeyToLabel(record.month)} ✓`);
       await renderHistory();
       if (window.Goals) await Goals.refresh(); // linked goals track saved months
@@ -331,7 +379,11 @@
         const key = Object.keys(breakdown).find(
           (k) => slugify(k) === slugify(name)
         );
-        return { name, amount: key ? Number(breakdown[key]) || 0 : 0 };
+        return {
+          name,
+          amount: key ? Number(breakdown[key]) || 0 : 0,
+          pending: 0,
+        };
       });
     } else {
       // Fresh month — reset to defaults, keep income blank.
@@ -339,7 +391,11 @@
       income2 = 0;
       el.income1.value = "";
       el.income2.value = "";
-      categories = DEFAULT_CATEGORIES.map((name) => ({ name, amount: 0 }));
+      categories = DEFAULT_CATEGORIES.map((name) => ({
+        name,
+        amount: 0,
+        pending: 0,
+      }));
     }
     renderCategories();
     recompute();
@@ -568,7 +624,11 @@
     income2 = 0;
     el.income1.value = "";
     el.income2.value = "";
-    categories = DEFAULT_CATEGORIES.map((name) => ({ name, amount: 0 }));
+    categories = DEFAULT_CATEGORIES.map((name) => ({
+      name,
+      amount: 0,
+      pending: 0,
+    }));
     renderCategories();
     recompute();
     el.historyBody.innerHTML = "";
