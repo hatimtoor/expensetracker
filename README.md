@@ -11,8 +11,8 @@ No build step. Plain HTML + Tailwind (CDN) + Chart.js + Supabase JS.
 ## Features
 
 - Auto-detects the current month; switch months to back-log or review past data.
-- **Fortnightly income** — two paycheck fields (paid twice a month) that sum
-  into your monthly total.
+- **Multiple paychecks** — add as many income entries as you like (weekly,
+  fortnightly, bonuses…); they sum into your monthly total.
 - Default categories (Mutual Funds, Food, Outing, Medicine) plus **Add Custom
   Category** — new numeric fields appear instantly.
 - Three live metric cards: Total Income, Total Expenses, Remaining Balance.
