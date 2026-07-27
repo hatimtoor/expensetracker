@@ -18,9 +18,14 @@ No build step. Plain HTML + Tailwind (CDN) + Chart.js + Supabase JS.
 - Three live metric cards: Total Income, Total Expenses, Remaining Balance.
 - Donut chart *"Where is your money going?"* — updates in real time, hides $0
   categories.
-- **Save Month's Data** — persists to Supabase (if configured) and always
-  mirrors to your browser's local storage.
-- **Historical Log** table with Load / Delete per month and **Export CSV**.
+- **Auto-save** — changes persist quietly a moment after you stop typing (with a
+  status indicator). The **Save Month's Data** button also banks the month and
+  resets the per-category "add" fields.
+- Persists to Supabase (if configured) and always mirrors to your browser's
+  local storage.
+- **Trend chart** — income vs. expenses across your saved months.
+- **Historical Log** table (with each month's paycheck breakdown), Load / Delete
+  per month, and **Export CSV**.
 - **Savings Goals** — set a name, target amount and optional deadline; each goal
   shows a progress ring. Link a goal to an expense category (e.g. Mutual Funds)
   and its progress auto-fills from your saved months, or track it manually.

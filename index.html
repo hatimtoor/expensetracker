@@ -194,6 +194,7 @@
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>
         Export CSV
       </button>
+      <span id="saveStatus" class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500"></span>
       <span id="toast" class="text-sm font-medium text-emerald-400 opacity-0 transition-opacity"></span>
     </section>
 
@@ -250,6 +251,20 @@
       <div id="goalsGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
       <div id="goalsEmpty" class="glass rounded-2xl border border-white/10 p-8 text-center text-slate-500 text-sm">
         No goals yet. Add one above — e.g. invest <span class="text-slate-300 font-medium">Rs 300,000</span> in Mutual Funds.
+      </div>
+    </section>
+
+    <!-- Trends -->
+    <section class="glass rounded-2xl border border-white/10 shadow-card p-5 sm:p-6 mb-8">
+      <div class="mb-4">
+        <h2 class="text-lg font-bold text-white">Trends</h2>
+        <p class="text-xs text-slate-400">Income vs. expenses across your saved months.</p>
+      </div>
+      <div class="relative h-64 sm:h-72">
+        <canvas id="trendChart"></canvas>
+        <div id="trendEmpty" class="absolute inset-0 grid place-items-center text-center text-slate-500 text-sm">
+          Save a couple of months to see your trend.
+        </div>
       </div>
     </section>
 

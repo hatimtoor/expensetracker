@@ -25,6 +25,9 @@
   }));
   let incomes = [0, 0]; // one entry per paycheck; add/remove as many as needed
   let chart = null;
+  let trendChart = null;
+  let autosaveReady = false; // becomes true after the first month loads
+  let autosaveTimer = null;
 
   // --- Element refs ----------------------------------------------------------
   const el = {
@@ -48,6 +51,8 @@
     historyBody: document.getElementById("historyBody"),
     historyEmpty: document.getElementById("historyEmpty"),
     historyCount: document.getElementById("historyCount"),
+    trendEmpty: document.getElementById("trendEmpty"),
+    saveStatus: document.getElementById("saveStatus"),
     syncDot: document.getElementById("syncDot"),
     syncLabel: document.getElementById("syncLabel"),
   };
@@ -59,6 +64,7 @@
     minimumFractionDigits: 0, // whole rupees stay clean (Rs 5,000)
     maximumFractionDigits: 2, // paisa still shown when present (Rs 5,000.50)
   });
+  const num = new Intl.NumberFormat("en-PK", { maximumFractionDigits: 2 });
 
   function currentMonthKey() {
     const now = new Date();
@@ -69,6 +75,12 @@
     const [y, m] = key.split("-").map(Number);
     const d = new Date(y, m - 1, 1);
     return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  }
+
+  function monthKeyShort(key) {
+    const [y, m] = key.split("-").map(Number);
+    const d = new Date(y, m - 1, 1);
+    return d.toLocaleDateString(undefined, { month: "short", year: "2-digit" });
   }
 
   /** A category's effective total = already-saved base + what you're adding now. */
@@ -179,7 +191,7 @@
       input.addEventListener("input", () => {
         cat.pending = parseFloat(input.value) || 0;
         renderHint();
-        recompute();
+        onUserEdit();
       });
 
       inputWrap.appendChild(dollar);
@@ -219,7 +231,7 @@
         "w-full rounded-xl bg-ink-800 border border-white/10 pl-10 pr-3 py-2.5 text-slate-100 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/60";
       input.addEventListener("input", () => {
         incomes[i] = parseFloat(input.value) || 0;
-        recompute();
+        onUserEdit();
       });
 
       inputWrap.appendChild(rs);
@@ -254,7 +266,7 @@
     if (incomes.length <= 1) return;
     incomes.splice(i, 1);
     renderPaychecks();
-    recompute();
+    onUserEdit();
   }
 
   function renderMetrics() {
@@ -341,6 +353,94 @@
     renderChart();
   }
 
+  // --- Trend chart (income vs. expenses over months) -------------------------
+  function renderTrend(records) {
+    // records come newest-first; plot oldest → newest.
+    const chrono = [...(records || [])].reverse();
+    const hasData = chrono.length > 0;
+    el.trendEmpty.style.display = hasData ? "none" : "grid";
+
+    const labels = chrono.map((r) => monthKeyShort(r.month));
+    const incomeData = chrono.map((r) => Number(r.income) || 0);
+    const expenseData = chrono.map((r) => Number(r.total_expense) || 0);
+
+    if (!trendChart) {
+      const ctx = document.getElementById("trendChart").getContext("2d");
+      trendChart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "Income",
+              data: incomeData,
+              borderColor: "#22c55e",
+              backgroundColor: "rgba(34,197,94,0.12)",
+              fill: true,
+              tension: 0.35,
+              borderWidth: 2,
+              pointRadius: 3,
+              pointBackgroundColor: "#22c55e",
+            },
+            {
+              label: "Expenses",
+              data: expenseData,
+              borderColor: "#f43f5e",
+              backgroundColor: "rgba(244,63,94,0.10)",
+              fill: true,
+              tension: 0.35,
+              borderWidth: 2,
+              pointRadius: 3,
+              pointBackgroundColor: "#f43f5e",
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: "index", intersect: false },
+          plugins: {
+            legend: {
+              position: "bottom",
+              labels: {
+                color: "#cbd5e1",
+                usePointStyle: true,
+                pointStyle: "circle",
+                padding: 14,
+                font: { size: 12 },
+              },
+            },
+            tooltip: {
+              callbacks: {
+                label: (item) =>
+                  ` ${item.dataset.label}: ${money.format(item.parsed.y || 0)}`,
+              },
+            },
+          },
+          scales: {
+            x: {
+              grid: { color: "rgba(255,255,255,0.05)" },
+              ticks: { color: "#94a3b8", font: { size: 11 } },
+            },
+            y: {
+              grid: { color: "rgba(255,255,255,0.05)" },
+              ticks: {
+                color: "#94a3b8",
+                font: { size: 11 },
+                callback: (v) => num.format(v),
+              },
+            },
+          },
+        },
+      });
+    } else {
+      trendChart.data.labels = labels;
+      trendChart.data.datasets[0].data = incomeData;
+      trendChart.data.datasets[1].data = expenseData;
+      trendChart.update();
+    }
+  }
+
   // --- Category actions ------------------------------------------------------
   function addCategory(name) {
     const trimmed = name.trim();
@@ -365,9 +465,12 @@
   }
 
   function removeCategory(index) {
+    const had = effective(categories[index]) > 0;
     categories.splice(index, 1);
     renderCategories();
-    recompute();
+    // Only persist if removing it actually changed the totals.
+    if (had) onUserEdit();
+    else recompute();
   }
 
   function showAddError(msg) {
@@ -397,12 +500,32 @@
     };
   }
 
-  async function saveMonth() {
+  /** Persist the current month. Does NOT fold pending amounts (safe for autosave). */
+  async function persist({ silent } = {}) {
     const record = buildRecord();
-    el.saveBtn.disabled = true;
-    el.saveBtn.classList.add("opacity-70");
+    setSaveStatus("saving");
     try {
       await Store.saveRecord(record);
+      await renderHistory();
+      if (window.Goals) await Goals.refresh(); // linked goals track saved months
+      setSaveStatus("saved");
+      return true;
+    } catch (e) {
+      console.error(e);
+      setSaveStatus("error");
+      if (!silent) toast("Save failed — check console / Supabase config.", true);
+      return false;
+    }
+  }
+
+  /** Explicit "Save" button: persist, then fold pending into the saved base. */
+  async function saveMonth() {
+    clearTimeout(autosaveTimer); // supersede any pending autosave
+    el.saveBtn.disabled = true;
+    el.saveBtn.classList.add("opacity-70");
+    const month = el.monthPicker.value || currentMonthKey();
+    const ok = await persist({ silent: false });
+    if (ok) {
       // Fold what was just added into the saved base and clear the inputs,
       // so the next amount you type adds on top instead of replacing.
       categories.forEach((c) => {
@@ -411,20 +534,44 @@
       });
       renderCategories();
       recompute();
-      toast(`Saved ${monthKeyToLabel(record.month)} ✓`);
-      await renderHistory();
-      if (window.Goals) await Goals.refresh(); // linked goals track saved months
-    } catch (e) {
-      console.error(e);
-      toast("Save failed — check console / Supabase config.", true);
-    } finally {
-      el.saveBtn.disabled = false;
-      el.saveBtn.classList.remove("opacity-70");
+      toast(`Saved ${monthKeyToLabel(month)} ✓`);
     }
+    el.saveBtn.disabled = false;
+    el.saveBtn.classList.remove("opacity-70");
+  }
+
+  /** Debounced background save after the user stops editing. */
+  function scheduleAutoSave() {
+    if (!autosaveReady) return;
+    setSaveStatus("pending");
+    clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(() => persist({ silent: true }), 1200);
+  }
+
+  /** Called from user-driven edits: recompute the UI, then queue an autosave. */
+  function onUserEdit() {
+    recompute();
+    scheduleAutoSave();
+  }
+
+  function setSaveStatus(state) {
+    if (!el.saveStatus) return;
+    const map = {
+      pending: ["Unsaved changes…", "text-slate-400"],
+      saving: ["Saving…", "text-slate-400"],
+      saved: ["✓ All changes saved", "text-emerald-400"],
+      error: ["Save failed", "text-rose-400"],
+      "": ["", "text-slate-500"],
+    };
+    const [text, cls] = map[state] || map[""];
+    el.saveStatus.textContent = text;
+    el.saveStatus.className =
+      "inline-flex items-center gap-1.5 text-xs font-medium " + cls;
   }
 
   /** Load a saved month into the editor (used on month change). */
   async function loadMonth(monthKey) {
+    clearTimeout(autosaveTimer); // don't let a queued autosave fire for the old month
     el.monthLabel.textContent = monthKeyToLabel(monthKey);
     let record = null;
     try {
@@ -489,6 +636,8 @@
       console.warn("Could not list history:", e);
     }
 
+    renderTrend(records);
+
     el.historyBody.innerHTML = "";
     if (!records.length) {
       el.historyEmpty.style.display = "block";
@@ -504,13 +653,22 @@
       const tr = document.createElement("tr");
       tr.className = "border-b border-white/5 hover:bg-white/5 transition";
       const balanceClass = (r.balance || 0) < 0 ? "text-rose-400" : "text-emerald-400";
+      // Sub-line listing each paycheck when there's more than one.
+      const pays = recordIncomes(r).filter((n) => n > 0);
+      const paysSub =
+        pays.length > 1
+          ? `<div class="text-[11px] font-normal text-slate-500">${pays
+              .map((n) => num.format(n))
+              .join(" + ")}</div>`
+          : "";
       tr.innerHTML = `
         <td class="px-5 sm:px-6 py-3 font-semibold text-white whitespace-nowrap">${monthKeyToLabel(
           r.month
         )}</td>
         <td class="px-4 py-3 text-right tabular-nums text-slate-200">${money.format(
           r.income || 0
-        )}</td>
+        )}${paysSub}</td>`;
+      tr.innerHTML += `
         <td class="px-4 py-3 text-right tabular-nums text-slate-200">${money.format(
           r.total_expense || 0
         )}</td>
@@ -669,7 +827,11 @@
       () =>
         loadMonth(el.monthPicker.value || startMonth)
           .then(renderHistory)
-          .then(() => window.Goals && Goals.load()),
+          .then(() => window.Goals && Goals.load())
+          .then(() => {
+            autosaveReady = true; // enable autosave only after first load
+            setSaveStatus("");
+          }),
       // onSignedOut: wipe the screen so nothing leaks between accounts.
       resetUI
     );
@@ -677,6 +839,9 @@
 
   /** Clear all inputs, chart and history back to an empty default state. */
   function resetUI() {
+    autosaveReady = false; // no autosave while signed out
+    clearTimeout(autosaveTimer);
+    setSaveStatus("");
     incomes = [0, 0];
     categories = DEFAULT_CATEGORIES.map((name) => ({
       name,
@@ -686,6 +851,7 @@
     renderPaychecks();
     renderCategories();
     recompute();
+    renderTrend([]);
     el.historyBody.innerHTML = "";
     el.historyEmpty.style.display = "block";
     el.historyCount.textContent = "";
