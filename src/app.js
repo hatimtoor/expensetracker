@@ -23,16 +23,15 @@
     amount: 0,
     pending: 0,
   }));
-  let income1 = 0; // first fortnightly paycheck
-  let income2 = 0; // second fortnightly paycheck
+  let incomes = [0, 0]; // one entry per paycheck; add/remove as many as needed
   let chart = null;
 
   // --- Element refs ----------------------------------------------------------
   const el = {
     monthPicker: document.getElementById("monthPicker"),
     monthLabel: document.getElementById("monthLabel"),
-    income1: document.getElementById("income1"),
-    income2: document.getElementById("income2"),
+    incomeList: document.getElementById("incomeList"),
+    addPaycheckBtn: document.getElementById("addPaycheckBtn"),
     incomeTotal: document.getElementById("incomeTotal"),
     metricIncome: document.getElementById("metricIncome"),
     metricExpenses: document.getElementById("metricExpenses"),
@@ -82,7 +81,19 @@
   }
 
   function totalIncome() {
-    return (Number(income1) || 0) + (Number(income2) || 0);
+    return incomes.reduce((sum, n) => sum + (Number(n) || 0), 0);
+  }
+
+  /** Read a saved record's paychecks, tolerating legacy income_1/income_2/income. */
+  function recordIncomes(r) {
+    if (Array.isArray(r.incomes) && r.incomes.length) {
+      return r.incomes.map((n) => Number(n) || 0);
+    }
+    if (r.income_1 != null || r.income_2 != null) {
+      return [Number(r.income_1) || 0, Number(r.income_2) || 0];
+    }
+    if (r.income != null) return [Number(r.income) || 0];
+    return [0];
   }
 
   function slugify(name) {
@@ -178,6 +189,72 @@
       wrap.appendChild(hint);
       el.categoryGrid.appendChild(wrap);
     });
+  }
+
+  // --- Paychecks (dynamic) ---------------------------------------------------
+  function renderPaychecks() {
+    el.incomeList.innerHTML = "";
+    incomes.forEach((amt, i) => {
+      const row = document.createElement("div");
+      row.className = "flex items-center gap-2";
+
+      const tag = document.createElement("span");
+      tag.className = "w-20 shrink-0 text-xs text-slate-400";
+      tag.textContent = `Paycheck ${i + 1}`;
+
+      const inputWrap = document.createElement("div");
+      inputWrap.className = "relative flex-1";
+      const rs = document.createElement("span");
+      rs.className =
+        "absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-medium select-none";
+      rs.textContent = "Rs";
+      const input = document.createElement("input");
+      input.type = "number";
+      input.inputMode = "decimal";
+      input.min = "0";
+      input.step = "0.01";
+      input.placeholder = "0.00";
+      input.value = amt ? amt : "";
+      input.className =
+        "w-full rounded-xl bg-ink-800 border border-white/10 pl-10 pr-3 py-2.5 text-slate-100 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/60";
+      input.addEventListener("input", () => {
+        incomes[i] = parseFloat(input.value) || 0;
+        recompute();
+      });
+
+      inputWrap.appendChild(rs);
+      inputWrap.appendChild(input);
+      row.appendChild(tag);
+      row.appendChild(inputWrap);
+
+      if (incomes.length > 1) {
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className =
+          "shrink-0 text-slate-400 hover:text-rose-400 transition";
+        del.title = "Remove paycheck";
+        del.innerHTML =
+          '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>';
+        del.addEventListener("click", () => removePaycheck(i));
+        row.appendChild(del);
+      }
+      el.incomeList.appendChild(row);
+    });
+  }
+
+  function addPaycheck() {
+    incomes.push(0);
+    renderPaychecks();
+    recompute();
+    const inputs = el.incomeList.querySelectorAll("input");
+    if (inputs.length) inputs[inputs.length - 1].focus();
+  }
+
+  function removePaycheck(i) {
+    if (incomes.length <= 1) return;
+    incomes.splice(i, 1);
+    renderPaychecks();
+    recompute();
   }
 
   function renderMetrics() {
@@ -313,8 +390,7 @@
     return {
       month: el.monthPicker.value || currentMonthKey(),
       income: inc,
-      income_1: Number(income1) || 0,
-      income_2: Number(income2) || 0,
+      incomes: incomes.map((n) => Number(n) || 0),
       total_expense: exp,
       balance: inc - exp,
       breakdown,
@@ -358,17 +434,8 @@
     }
 
     if (record) {
-      // Prefer the two saved paychecks; fall back to legacy single-income
-      // records by putting the whole amount in the first paycheck.
-      if (record.income_1 != null || record.income_2 != null) {
-        income1 = Number(record.income_1) || 0;
-        income2 = Number(record.income_2) || 0;
-      } else {
-        income1 = Number(record.income) || 0;
-        income2 = 0;
-      }
-      el.income1.value = income1 ? income1 : "";
-      el.income2.value = income2 ? income2 : "";
+      // Restore the saved paychecks (tolerating legacy income_1/income_2/income).
+      incomes = recordIncomes(record);
       // Rebuild categories: defaults first, then any saved extras, applying amounts.
       const breakdown = record.breakdown || {};
       const names = [...DEFAULT_CATEGORIES];
@@ -386,17 +453,15 @@
         };
       });
     } else {
-      // Fresh month — reset to defaults, keep income blank.
-      income1 = 0;
-      income2 = 0;
-      el.income1.value = "";
-      el.income2.value = "";
+      // Fresh month — reset to defaults, keep income blank (two paychecks to start).
+      incomes = [0, 0];
       categories = DEFAULT_CATEGORIES.map((name) => ({
         name,
         amount: 0,
         pending: 0,
       }));
     }
+    renderPaychecks();
     renderCategories();
     recompute();
   }
@@ -503,8 +568,7 @@
     const cats = [...catSet];
     const header = [
       "Month",
-      "Income (1st)",
-      "Income (2nd)",
+      "Paychecks",
       "Income (Total)",
       "Total Expense",
       "Balance",
@@ -514,8 +578,7 @@
       const b = r.breakdown || {};
       return [
         monthKeyToLabel(r.month),
-        r.income_1 || 0,
-        r.income_2 || 0,
+        recordIncomes(r).join(" + "),
         r.income || 0,
         r.total_expense || 0,
         r.balance || 0,
@@ -580,14 +643,7 @@
     el.monthPicker.value = startMonth;
     el.monthLabel.textContent = monthKeyToLabel(startMonth);
 
-    el.income1.addEventListener("input", () => {
-      income1 = parseFloat(el.income1.value) || 0;
-      recompute();
-    });
-    el.income2.addEventListener("input", () => {
-      income2 = parseFloat(el.income2.value) || 0;
-      recompute();
-    });
+    el.addPaycheckBtn.addEventListener("click", addPaycheck);
 
     el.monthPicker.addEventListener("change", () => {
       const key = el.monthPicker.value || currentMonthKey();
@@ -603,6 +659,7 @@
     el.saveBtn.addEventListener("click", saveMonth);
     el.exportBtn.addEventListener("click", exportCsv);
 
+    renderPaychecks();
     renderCategories();
     recompute();
 
@@ -620,15 +677,13 @@
 
   /** Clear all inputs, chart and history back to an empty default state. */
   function resetUI() {
-    income1 = 0;
-    income2 = 0;
-    el.income1.value = "";
-    el.income2.value = "";
+    incomes = [0, 0];
     categories = DEFAULT_CATEGORIES.map((name) => ({
       name,
       amount: 0,
       pending: 0,
     }));
+    renderPaychecks();
     renderCategories();
     recompute();
     el.historyBody.innerHTML = "";

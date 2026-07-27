@@ -5,9 +5,10 @@
 create table if not exists public.monthly_records (
   id            uuid primary key default gen_random_uuid(),
   month         text not null,                   -- "YYYY-MM"
-  income        numeric not null default 0,      -- total for the month (income_1 + income_2)
-  income_1      numeric not null default 0,      -- first fortnightly paycheck
-  income_2      numeric not null default 0,      -- second fortnightly paycheck
+  income        numeric not null default 0,      -- total for the month (sum of paychecks)
+  incomes       jsonb  not null default '[]'::jsonb, -- per-paycheck amounts, e.g. [80000, 80000, 50000]
+  income_1      numeric not null default 0,      -- legacy (kept for old rows; no longer written)
+  income_2      numeric not null default 0,      -- legacy
   total_expense numeric not null default 0,
   balance       numeric not null default 0,
   breakdown     jsonb  not null default '{}'::jsonb,  -- { "Food": 500, "Rent": 1200 }
@@ -15,7 +16,10 @@ create table if not exists public.monthly_records (
   updated_at    timestamptz not null default now()
 );
 
--- Fortnightly paychecks (upgrade older tables that only had `income`).
+-- Paychecks (upgrade older tables). `incomes` holds one amount per paycheck;
+-- income_1/income_2 are legacy columns kept only so old rows still read.
+alter table public.monthly_records
+  add column if not exists incomes jsonb not null default '[]'::jsonb;
 alter table public.monthly_records
   add column if not exists income_1 numeric not null default 0;
 alter table public.monthly_records
